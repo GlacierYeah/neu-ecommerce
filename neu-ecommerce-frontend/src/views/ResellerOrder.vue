@@ -1,0 +1,1024 @@
+<template>
+  <!-- 快捷导航模块 start -->
+  <section class="shortcut">
+    <div class="w">
+      <div class="fl">
+        <ul>
+          <li>东软跨境电商借买交易平台欢迎您！&nbsp;</li>
+          <!-- <li>
+                        <a href="#">请登录</a> &nbsp; <a href="register.html" class="style_red">免费注册</a>
+                    </li> -->
+        </ul>
+      </div>
+      <div class="fr">
+        <ul>
+          <li><a @click="resellerIndex">首页</a></li>
+          <li></li>
+          <li>
+            <a>我的网店</a>
+            <div class="dropdown">
+              <a @click="resellerStore">网店商品</a>
+              <a @click="resellerStoreInfo">信息管理</a>
+            </div>
+          </li>
+          <li></li>
+          <li><a @click="resellerWish">我的购物车</a></li>
+          <li></li>
+          <li><a class="style_red" @click="resellerOrder">我的订单</a></li>
+          <li></li>
+          <li>
+            <a href="#">电子钱包</a>
+            <div class="dropdown">
+              <a @click="resellerWalletManagement">钱包管理</a>
+              <a @click="resellerTransactionRecords">交易记录</a>
+            </div>
+          </li>
+          <li></li>
+          <li><a @click="resellerInfo">我的信息</a></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+  <!-- 快捷导航模块 end -->
+
+  <!-- header头部模块制作 start -->
+  <div class="w">
+    <header>
+      <div class="logo">
+        <a @click="resellerIndex">
+          <img src="../assets/images/logo.png" alt=""
+        /></a>
+      </div>
+    </header>
+    <div class="registerarea">
+      <h3>订单信息管理</h3>
+      <div class="search_box">
+        <input
+          type="text"
+          class="layui-input"
+          placeholder=""
+          id="search-input"
+          style="width: 300px; display: inline-block"
+          v-model="searchStatus"
+        />
+        <button
+          class="layui-btn layui-btn-normal"
+          id="search-btn"
+          style="background-color: rgb(172, 31, 31)"
+          @click="search(searchStatus)"
+        >
+          搜索
+        </button>
+      </div>
+      <div class="store_table">
+        <table class="layui-table">
+          <colgroup>
+            <col width="100" />
+            <col width="100" />
+            <col width="100" />
+            <col width="100" />
+            <col width="120" />
+            <col width="80" />
+            <col width="80" />
+            <col width="120" />
+            <col width="120" />
+            <col width="120" />
+            <col width="300" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>订单ID</th>
+              <th>商品ID</th>
+              <th>品牌ID</th>
+              <th>租金</th>
+              <th>租借时间</th>
+              <th>买金</th>
+              <th>数量</th>
+              <th>订单总价</th>
+              <th>订单日期</th>
+              <th>订单状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="order-table-body">
+            <tr v-for="order in orders" :key="order.id">
+              <td>{{ order.id }}</td>
+              <td>{{ order.productId }}</td>
+              <td>{{ order.brandId }}</td>
+              <td>{{ order.rentPrice }}</td>
+              <td>{{ order.rentTime }}</td>
+              <td>{{ order.purchasePrice }}</td>
+              <td>{{ order.quantity }}</td>
+              <td>{{ order.totalPrice }}</td>
+              <td>{{ order.orderDate }}</td>
+              <td>{{ order.status }}</td>
+              <td>
+                <button
+                  class="layui-btn layui-btn-xs"
+                  @click="openDeliverDialog(order)"
+                  v-if="
+                    order.status == '待发货' ||
+                    order.status == '已发货' ||
+                    order.status == '已送达'
+                  "
+                >
+                  物流详情
+                </button>
+                <button
+                  class="layui-btn layui-bg-blue layui-btn-xs"
+                  @click="openPayDialog(order)"
+                  v-if="order.status == '待支付'"
+                >
+                  支付
+                </button>
+                <button
+                  class="layui-btn layui-btn-danger layui-btn-xs"
+                  @click="cancelOrder(order)"
+                  v-if="order.status == '待支付'"
+                >
+                  取消
+                </button>
+                <button
+                  class="layui-btn layui-bg-blue layui-btn-xs"
+                  @click="receiveOrder(order)"
+                  v-if="order.status == '已发货'"
+                >
+                  确认收货
+                </button>
+                <button
+                  class="layui-btn layui-btn-danger layui-btn-xs"
+                  @click="deleteOrder(order)"
+                  v-if="order.status == '已送达' || order.status == '已取消'"
+                >
+                  删除记录
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <!-- 支付的弹出框 -->
+    <div class="overlay" v-if="payDialogVisible">
+      <div class="dialog">
+        <form @submit.prevent="payOrder">
+          <table class="layui-table table-center">
+            <tbody>
+              <tr>
+                <td><label for="">请输入支付密码：</label></td>
+                <td>
+                  <input
+                    type="password"
+                    class="inp"
+                    v-model="editForm.payCode"
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <!-- 弹出框修改部分 -->
+          <div style="text-align: center; margin-top: 20px">
+            <input type="submit" value="确认" class="btn" />
+            <input
+              type="button"
+              value="取消"
+              class="btn"
+              @click="closeDialog"
+            />
+          </div>
+        </form>
+      </div>
+    </div>
+    <!-- 物流信息的弹出框 -->
+    <div class="overlay" v-if="deliverDialogVisible">
+      <div class="dialog">
+        <form>
+          <table class="layui-table table-center">
+            <tbody>
+              <tr>
+                <td><label for="">物流状态：</label></td>
+                <td>{{ deliverForm.status }}</td>
+              </tr>
+              <tr>
+                <td><label for="">物流单号：</label></td>
+                <td>{{ deliverForm.logisticsNumber }}</td>
+              </tr>
+              <tr>
+                <td><label for="">物流类型：</label></td>
+                <td>{{ deliverForm.logisticsType }}</td>
+              </tr>
+              <tr>
+                <td><label for="">邮费：</label></td>
+                <td>{{ deliverForm.postage }}</td>
+              </tr>
+              <tr>
+                <td><label for="">地址：</label></td>
+                <td>{{ deliverForm.address }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <!-- 弹出框修改部分 -->
+          <div style="text-align: center; margin-top: 20px">
+            <input
+              type="button"
+              value="关闭"
+              class="btn"
+              @click="closeDialog"
+            />
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { useRouter, useRoute } from "vue-router";
+import { ref } from "vue";
+import axios from "axios";
+
+const router = useRouter();
+const route = useRoute();
+let orders = ref([]);
+let payDialogVisible = ref(false);
+let deliverDialogVisible = ref(false);
+let editForm = ref({});
+let deliverForm = ref({});
+let searchStatus = ref();
+let data = route.query.data;
+
+axios
+  .get("/api/store/findOrders", {
+    headers: {
+      Authorization: data,
+    },
+  })
+  .then((response) => {
+    console.log(response.data);
+    if (response.data.code === 0) {
+      console.log(response);
+      console.log(response.data.data);
+      orders.value = response.data.data;
+    } else {
+      alert(response.data.message);
+    }
+  })
+  .catch((error) => {
+    console.error(error);
+  });
+
+const openPayDialog = (order) => {
+ editForm.value = {
+    ...order,
+  }; 
+  payDialogVisible.value = true;
+};
+
+const openDeliverDialog = (order) => {
+  deliverForm.value.status = deliverChange(order.status);
+  deliverForm.value.logisticsNumber = order.logisticsNumber;
+  deliverForm.value.logisticsType = order.logisticsType;
+  deliverForm.value.postage = order.postage;
+  deliverForm.value.address = order.address;
+  console.log(deliverForm);
+  deliverDialogVisible.value = true;
+};
+
+const closeDialog = () => {
+  payDialogVisible.value = false;
+  deliverDialogVisible.value = false;
+};
+
+const deliverChange = (status) => {
+  console.log(status);
+  switch (status) {
+    case "待发货":
+      return "待发货";
+    case "已发货":
+      return "运输中";
+    case "已送达":
+      return "已送达";
+  }
+};
+
+const payOrder = (order) => {
+  console.log(editForm);
+  axios
+    .put(`/api/store/payOrder`, editForm.value, {
+      headers: {
+        Authorization: data,
+        "Content-Type": "application/json",
+      },
+    })
+    .then((response) => {
+      console.log(response.data);
+      if (response.data.code === 0) {
+        alert("支付成功");
+        payDialogVisible.value = false;
+        console.log(response);
+        window.location.reload();
+      } else {
+        alert(response.data.message);
+      }
+    })
+    .catch((error) => {
+      console.error(error);
+      alert("支付失败");
+    });
+};
+
+const search = (searchStatus) => {
+  console.log("Search status:", searchStatus);
+  axios
+    .get(
+      `/api/order/findOrdersByStatus?status=${encodeURIComponent(
+        searchStatus
+      )}`,
+      {
+        headers: {
+          Authorization: data, // 确保将 yourToken 替换为实际的令牌
+        },
+      }
+    )
+    .then((response) => {
+      console.log(response.data);
+      if (response.data.code === 0) {
+        console.log("Response data:", response.data);
+        orders.value = response.data.data;
+      } else {
+        alert(response.data.message);
+      }
+    })
+    .catch((error) => {
+      console.error("Error:", error);
+    });
+};
+
+const cancelOrder = (order) => {
+  axios
+    .put(`/api/store/cancelOrder`, order, {
+      headers: {
+        Authorization: data,
+        "Content-Type": "application/json",
+      },
+    })
+    .then((response) => {
+      console.log(response.data);
+      if (response.data.code === 0) {
+        alert("取消成功");
+        window.location.reload();
+      } else {
+        alert(response.data.message);
+      }
+    })
+    .catch((error) => {
+      console.error(error);
+      alert("取消失败");
+    });
+}
+
+const receiveOrder = (order) => {
+  axios
+    .put(`/api/store/affirm`, order, {
+      headers: {
+        Authorization: data,
+        "Content-Type": "application/json",
+      },
+    })
+    .then((response) => {
+      console.log(response.data);
+      if (response.data.code === 0) {
+        alert("确认收货成功");
+        window.location.reload();
+      } else {
+        alert(response.data.message);
+      }
+    })
+    .catch((error) => {
+      console.error(error);
+      alert("确认收货失败");
+    });
+}
+
+const deleteOrder = (orders) => {
+  axios
+    .delete("/api/order/deleteOrder", {
+      headers: {
+        Authorization: data,
+        "Content-Type": "application/json",
+      },
+      data: orders // 通过 data 属性传递请求体数据
+    })
+    .then((response) => {
+      console.log(response.data);
+      if (response.data.code === 0) {
+        alert("删除成功");
+        window.location.reload();
+      } else {
+        alert(response.data.message);
+      }
+    })
+    .catch((error) => {
+      console.error(error);
+      alert("删除失败");
+    });
+};
+
+
+const resellerIndex = () => {
+  router.push({ path: "/resellerIndex", query: { data: data } });
+};
+const resellerInfo = () => {
+  router.push({ path: "/resellerInfo", query: { data: data } });
+};
+const resellerStore = () => {
+  router.push({ path: "/resellerStore", query: { data: data } });
+};
+const resellerStoreInfo = () => {
+  router.push({ path: "/resellerStoreInfo", query: { data: data } });
+};
+const resellerWish = () => {
+  router.push({ path: "/resellerWish", query: { data: data } });
+};
+const resellerOrder = () => {
+  router.push({ path: "/resellerOrder", query: { data: data } });
+};
+const resellerWalletManagement = () => {
+  router.push({ path: "/resellerWalletManagement", query: { data: data } });
+};
+const resellerTransactionRecords = () => {
+  router.push({ path: "/resellerTransactionRecords", query: { data: data } });
+};
+</script>
+
+<style scoped>
+@import url("https://cdn.jsdelivr.net/npm/layui-v2.5.6/dist/css/layui.css");
+@import url("https://cdn.jsdelivr.net/npm/layui-v2.5.6/dist/layui.js");
+
+/* 把我们所有标签的内外边距清零 */
+* {
+  margin: 0;
+  padding: 0;
+  /* css3盒子模型 */
+  box-sizing: border-box;
+}
+/* em 和 i 斜体的文字不倾斜 */
+em,
+i {
+  font-style: normal;
+}
+/* 去掉li 的小圆点 */
+li {
+  list-style: none;
+}
+
+img {
+  /* border 0 照顾低版本浏览器 如果 图片外面包含了链接会有边框的问题 */
+  border: 0;
+  /* 取消图片底侧有空白缝隙的问题 */
+  vertical-align: middle;
+}
+
+button {
+  /* 当我们鼠标经过button 按钮的时候，鼠标变成小手 */
+  cursor: pointer;
+}
+
+a {
+  color: #666;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #c81623;
+}
+
+button,
+input {
+  /* "\5B8B\4F53" 就是宋体的意思 这样浏览器兼容性比较好 */
+  font-family: Microsoft YaHei, Heiti SC, tahoma, arial, Hiragino Sans GB,
+    "\5B8B\4F53", sans-serif;
+  /* 默认有灰色边框我们需要手动去掉 */
+  border: 0;
+  outline: none;
+}
+
+body {
+  /* CSS3 抗锯齿形 让文字显示的更加清晰 */
+  -webkit-font-smoothing: antialiased;
+  background-color: #fff;
+  font: 12px/1.5 Microsoft YaHei, Heiti SC, tahoma, arial, Hiragino Sans GB,
+    "\5B8B\4F53", sans-serif;
+  color: #666;
+}
+
+.hide,
+.none {
+  display: none;
+}
+/* 清除浮动 */
+.clearfix:after {
+  visibility: hidden;
+  clear: both;
+  display: block;
+  content: ".";
+  height: 0;
+}
+
+.clearfix {
+  zoom: 1;
+}
+
+/* 声明字体图标 这里一定要注意路径的变化 */
+@font-face {
+  font-family: "icomoon";
+  src: url("../assets/fonts/icomoon.eot?tomleg");
+  src: url("../assets/fonts/icomoon.eot?tomleg#iefix")
+      format("embedded-opentype"),
+    url("../assets/fonts/icomoon.ttf?tomleg") format("truetype"),
+    url("../assets/fonts/icomoon.woff?tomleg") format("woff"),
+    url("../assets/fonts/icomoon.svg?tomleg#icomoon") format("svg");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+/* 版心 */
+.w {
+  width: 1200px;
+  margin: 0 auto;
+}
+.fl {
+  float: left;
+}
+.fr {
+  float: right;
+}
+.style_red {
+  color: #c81623;
+}
+/* 快捷导航模块 */
+.shortcut {
+  height: 31px;
+  line-height: 31px;
+  background-color: #f1f1f1;
+}
+.shortcut ul li {
+  float: left;
+}
+.store_table {
+  margin: 20px auto;
+  width: 90%;
+}
+
+.search_box {
+  margin: 20px auto;
+  width: 90%;
+  text-align: center;
+}
+
+.layui-table th,
+.layui-table td {
+  text-align: center;
+}
+
+.layui-table td button {
+  margin: 2px 5px;
+}
+
+.shortcut .w {
+  display: flex;
+  justify-content: space-between;
+}
+
+.shortcut .fr ul {
+  display: flex;
+  list-style: none;
+}
+
+.shortcut .fr ul li {
+  position: relative;
+  margin-right: 10px;
+}
+
+.shortcut .fr ul li a {
+  text-decoration: none;
+}
+
+.shortcut .fr ul li:hover .dropdown {
+  display: block;
+}
+
+.shortcut .dropdown {
+  display: none;
+  position: absolute;
+  top: 20px;
+  left: 0;
+  background-color: #fff;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+.shortcut .dropdown a {
+  display: block;
+  padding: 5px 10px;
+  white-space: nowrap;
+}
+
+.shortcut .dropdown a:hover {
+  background-color: #f5f5f5;
+}
+/* 选择所有的偶数的小li */
+.shortcut .fr ul li:nth-child(even) {
+  width: 1px;
+  height: 12px;
+  background-color: #666;
+  margin: 9px 15px 0;
+}
+.arrow-icon::after {
+  content: "\e91e";
+  font-family: "icomoon";
+  margin-left: 6px;
+}
+/* header 头部制作 */
+.header {
+  position: relative;
+  height: 105px;
+}
+.logo {
+  position: absolute;
+  top: 25px;
+  width: 171px;
+  height: 61px;
+}
+.logo a {
+  display: block;
+  width: 184px;
+  height: 56px;
+  background: url(../assets/images/logo.png) no-repeat;
+  /* font-size: 0;京东的做法*/
+  /* 淘宝的做法让文字隐藏 */
+  text-indent: -9999px;
+  overflow: hidden;
+}
+.search {
+  position: absolute;
+  left: 346px;
+  top: 25px;
+  width: 538px;
+  height: 36px;
+  border: 2px solid #b1191a;
+}
+.search input {
+  float: left;
+  width: 454px;
+  height: 32px;
+  padding-left: 10px;
+}
+.search button {
+  float: left;
+  width: 80px;
+  height: 32px;
+  background-color: #b1191a;
+  font-size: 16px;
+  color: #fff;
+}
+.hotwords {
+  position: absolute;
+  top: 66px;
+  left: 346px;
+}
+.hotwords a {
+  margin: 0 10px;
+}
+.shopcar {
+  position: absolute;
+  right: 60px;
+  top: 25px;
+  width: 140px;
+  height: 35px;
+  line-height: 35px;
+  text-align: center;
+  border: 1px solid #dfdfdf;
+  background-color: #f7f7f7;
+}
+.shopcar::before {
+  content: "\e93a";
+  font-family: "icomoon";
+  margin-right: 5px;
+  color: #b1191a;
+}
+.shopcar::after {
+  content: "\e920";
+  font-family: "icomoon";
+  margin-left: 10px;
+}
+.count {
+  position: absolute;
+  top: -5px;
+  left: 105px;
+  height: 14px;
+  line-height: 14px;
+  color: #fff;
+  background-color: #e60012;
+  padding: 0 5px;
+  border-radius: 7px 7px 7px 0;
+}
+/* nav模块制作 */
+.nav {
+  height: 47px;
+  border-bottom: 2px solid #b1191a;
+}
+.nav .dropdown {
+  float: left;
+  width: 210px;
+  height: 45px;
+  background-color: #b1191a;
+}
+.nav .navitems {
+  float: left;
+}
+.dropdown .dt {
+  width: 100%;
+  height: 100%;
+  color: #fff;
+  text-align: center;
+  line-height: 45px;
+  font-size: 16px;
+}
+.dropdown .dd {
+  /* display: none; */
+  width: 210px;
+  height: 465px;
+  background-color: #c81623;
+  margin-top: 2px;
+}
+.dropdown .dd ul li {
+  position: relative;
+  height: 31px;
+  line-height: 31px;
+  margin-left: 2px;
+  padding-left: 10px;
+}
+.dropdown .dd ul li:hover {
+  background-color: #fff;
+}
+.dropdown .dd ul li::after {
+  position: absolute;
+  top: 1px;
+  right: 10px;
+  color: #fff;
+  font-family: "icomoon";
+  content: "\e920";
+  font-size: 14px;
+}
+.dropdown .dd ul li a {
+  font-size: 14px;
+  color: #fff;
+}
+.dropdown .dd ul li:hover a {
+  color: #c81623;
+}
+.navitems ul li {
+  float: left;
+}
+.navitems ul li a {
+  display: block;
+  height: 45px;
+  line-height: 45px;
+  font-size: 16px;
+  padding: 0 25px;
+}
+
+/* 底部模块制作 */
+.footer {
+  height: 415px;
+  background-color: #f5f5f5;
+  padding-top: 30px;
+}
+.mod_service {
+  height: 80px;
+  border-bottom: 1px solid #ccc;
+}
+.mod_service ul li {
+  float: left;
+  width: 300px;
+  height: 50px;
+  padding-left: 35px;
+}
+.mod_service ul li h5 {
+  float: left;
+  width: 50px;
+  height: 50px;
+  background: url(../assets/images/icons.png) no-repeat -252px -2px;
+  margin-right: 8px;
+}
+.service_txt h4 {
+  font-size: 14px;
+}
+.service_txt p {
+  font-size: 12px;
+}
+.mod_help {
+  height: 185px;
+  border-bottom: 1px solid #ccc;
+  padding-top: 20px;
+  padding-left: 50px;
+}
+.mod_help dl {
+  float: left;
+  width: 200px;
+}
+.mod_help dl:last-child {
+  width: 90px;
+  text-align: center;
+}
+.mod_help dl dt {
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+.mod_copyright {
+  text-align: center;
+  padding-top: 20px;
+}
+.links {
+  margin-bottom: 15px;
+}
+.links a {
+  margin: 0 3px;
+}
+.copyright {
+  line-height: 20px;
+}
+.w {
+  width: 1200px;
+  margin: 0 auto;
+}
+header {
+  height: 84px;
+  border-bottom: 2px solid #c81523;
+}
+.logo {
+  padding-top: 25px;
+}
+.registerarea {
+  height: 522px;
+  border: 1px solid #ccc;
+  margin-top: 20px;
+}
+.registerarea h3 {
+  height: 42px;
+  border-bottom: 1px solid #ccc;
+  background-color: #ececec;
+  line-height: 42px;
+  padding: 0 10px;
+  font-size: 18px;
+  font-weight: 400;
+}
+.logo a {
+  background: url(../assets/images/store_logo.png) no-repeat;
+}
+.login {
+  float: right;
+  font-size: 14px;
+}
+.login a {
+  color: #c81523;
+}
+.store_form {
+  width: 600px;
+
+  margin: 50px auto 0;
+}
+.store_form ul li {
+  margin-bottom: 20px;
+}
+.store_form ul li label {
+  display: inline-block;
+  width: 88px;
+  text-align: right;
+}
+.store_form ul li .inp {
+  width: 242px;
+  height: 37px;
+  border: 1px solid #ccc;
+}
+.error {
+  color: #c81523;
+}
+.error_icon,
+.success_icon {
+  display: inline-block;
+  vertical-align: middle;
+  width: 20px;
+  height: 20px;
+  background: url(../assets/images/error.png) no-repeat;
+  margin-top: -2px;
+}
+.success {
+  color: green;
+}
+.success_icon {
+  background: url(../assets/images/success.png) no-repeat;
+}
+.safe {
+  padding-left: 170px;
+}
+.safe em {
+  padding: 0 12px;
+  color: #fff;
+}
+.ruo {
+  background-color: #de1111;
+}
+.zhong {
+  background-color: #40b83f;
+}
+
+.qiang {
+  background-color: #f79100;
+}
+.agree {
+  padding-left: 95px;
+}
+.agree input {
+  vertical-align: middle;
+}
+.agree a {
+  color: #1ba1e6;
+}
+.btn {
+  width: 200px;
+  height: 34px;
+  background-color: #c81623;
+  font-size: 14px;
+  color: #fff;
+  margin: 30px 0 0 70px;
+}
+.mod_copyright {
+  text-align: center;
+  padding-top: 20px;
+}
+.links {
+  margin-bottom: 15px;
+}
+.links a {
+  margin: 0 3px;
+}
+.copyright {
+  line-height: 20px;
+}
+.table-center {
+  margin: 0 auto;
+  text-align: left;
+  border-collapse: collapse;
+}
+.table-center th,
+.table-center td {
+  border: 1px solid #ccc;
+  padding: 10px;
+}
+.btn {
+  font-size: 18px;
+  padding: 8px 16px;
+  margin-top: 10px;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+/* 添加弹出框样式 */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dialog {
+  background: white;
+  padding: 20px;
+  border-radius: 5px;
+  width: 600px;
+}
+
+.dialog table {
+  width: 100%;
+}
+/* 将两个按钮放在同一行 */
+.dialog .btn {
+  display: inline-block;
+  margin: 0 10px;
+}
+
+.input-file {
+  /* 样式使文件输入视觉上更吸引人 */
+  border: 1px solid #ccc;
+  padding: 6px 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+</style>
